@@ -107,6 +107,32 @@ The dashboard shows all El Al flights **to Israel** for the next 8 days:
 
 Use the filters at the top to narrow down by origin city, date range, or show only flights with available seats.
 
+### Quick Setup: Star Alliance Origins from Tokyo
+
+If you're in **Tokyo** and want to fly home to Israel via a 2-leg route (Tokyo → Star Alliance hub → El Al flight to TLV), use the setup script to create alerts for all 25 El Al origins reachable from Tokyo via Star Alliance airlines in one command:
+
+```bash
+python setup_alerts.py --date 2026-03-20 --email you@gmail.com
+```
+
+**What it does:**
+1. Reads the curated list of Star Alliance-connected origins from `data/star_alliance_origins.json`
+2. Creates an alert for each of the 25 origins (LHR, FRA, IST, JFK, SIN, BKK, etc.)
+3. Saves dashboard defaults so the filter pre-selects those origins on startup
+
+**Options:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--date` | Yes | Alert trigger date in `YYYY-MM-DD` format. You'll be notified for flights on or after this date. |
+| `--email` | Yes | Email address to receive alerts (must configure email settings first — see below). |
+| `--config` | No | Path to a custom origins JSON file (default: `data/star_alliance_origins.json`). |
+
+**The script is idempotent** — running it again with the same date and email skips existing alerts.
+
+After running the script, start the app with `python app.py`. The dashboard will open with the Star Alliance origins pre-filtered and "Show available only" checked.
+
+**Covered airlines from Tokyo:** ANA, United, Lufthansa, Swiss, Turkish Airlines, LOT Polish, Austrian, Air India, Singapore Airlines, Thai Airways.
+
 ### Setting Up Alerts
 
 1. In the right sidebar, configure your email under **Email Settings** if you haven't already
@@ -163,6 +189,7 @@ ElAlRescueFlightFinder/
 ├── database.py               # SQLite schema & connections
 ├── models.py                 # Data classes
 ├── scheduler.py              # Hourly crawl scheduling
+├── setup_alerts.py           # Star Alliance alert setup script
 ├── tray_app.py               # Windows system tray
 ├── crawler/
 │   ├── seat_availability.py  # Playwright-based flight crawler
@@ -174,7 +201,8 @@ ElAlRescueFlightFinder/
 │   ├── templates/index.html  # Dashboard HTML
 │   └── static/               # CSS & JavaScript
 ├── data/
-│   └── flights.db            # SQLite database (auto-created)
+│   ├── flights.db            # SQLite database (auto-created)
+│   └── star_alliance_origins.json  # Star Alliance origins from Tokyo
 ├── requirements.txt
 ├── run.bat                   # Windows launcher
 └── .env                      # Your settings (not in git)
