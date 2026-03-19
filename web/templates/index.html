@@ -45,10 +45,16 @@
         <!-- Filter Bar -->
         <div class="filter-bar">
             <div class="filter-group">
-                <label for="filter-origin">Origin City</label>
-                <select id="filter-origin">
-                    <option value="">All Origins</option>
-                </select>
+                <label>Origin City</label>
+                <div class="multi-select" id="origin-multi-select">
+                    <button type="button" class="multi-select-btn" id="origin-multi-btn">All Origins</button>
+                    <div class="multi-select-dropdown" id="origin-multi-dropdown">
+                        <div class="multi-select-list" id="origin-multi-list">
+                            <!-- checkboxes populated by JS -->
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="filter-origin" value="">
             </div>
             <div class="filter-group">
                 <label for="filter-date-from">From Date</label>
@@ -135,9 +141,9 @@
 
         <form id="alert-form" class="alert-form" onsubmit="addAlert(event)">
             <div class="form-group">
-                <label for="alert-destination">Destination</label>
+                <label for="alert-destination">Origin</label>
                 <select id="alert-destination" required>
-                    <option value="">Select city...</option>
+                    <option value="">Select origin city...</option>
                 </select>
             </div>
             <div class="form-group">

@@ -13,6 +13,7 @@ let sortDirection = 'asc';
 let refreshCountdown = 60;
 let countdownInterval = null;
 let autoRefreshInterval = null;
+let selectedOrigins = [];  // multi-select state
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -102,6 +103,78 @@ function setConnectionStatus(connected) {
 }
 
 // ---------------------------------------------------------------------------
+// Multi-select Origin Filter
+// ---------------------------------------------------------------------------
+
+function initOriginMultiSelect() {
+    const container = document.getElementById('origin-multi-select');
+    const btn = document.getElementById('origin-multi-btn');
+    const dropdown = document.getElementById('origin-multi-dropdown');
+
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        container.classList.toggle('open');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!container.contains(e.target)) {
+            container.classList.remove('open');
+        }
+    });
+
+    // Prevent dropdown clicks from closing it
+    dropdown.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
+}
+
+function populateOriginMultiSelect(origins) {
+    // origins = [{code, label}, ...]
+    const list = document.getElementById('origin-multi-list');
+    list.innerHTML = '';
+
+    origins.forEach(function (o) {
+        var lbl = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = o.code;
+        cb.checked = selectedOrigins.indexOf(o.code) !== -1;
+        cb.addEventListener('change', onOriginCheckboxChange);
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(' ' + o.label));
+        list.appendChild(lbl);
+    });
+}
+
+function onOriginCheckboxChange() {
+    var checkboxes = document.querySelectorAll('#origin-multi-list input[type="checkbox"]');
+    selectedOrigins = [];
+    checkboxes.forEach(function (cb) {
+        if (cb.checked) selectedOrigins.push(cb.value);
+    });
+    updateOriginButtonText();
+    // Update hidden input
+    document.getElementById('filter-origin').value = selectedOrigins.join(',');
+}
+
+function updateOriginButtonText() {
+    var btn = document.getElementById('origin-multi-btn');
+    if (selectedOrigins.length === 0) {
+        btn.textContent = 'All Origins';
+    } else if (selectedOrigins.length <= 3) {
+        // Show city names for selected codes
+        var names = selectedOrigins.map(function (code) {
+            var found = destinations.find(function (d) { return d.code === code; });
+            return found ? found.city_name : code;
+        });
+        btn.textContent = names.join(', ');
+    } else {
+        btn.textContent = selectedOrigins.length + ' origins selected';
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Flights
 // ---------------------------------------------------------------------------
 
@@ -114,6 +187,8 @@ async function loadFlights() {
         allFlights = data;
         sortFlights();
         renderFlights(allFlights);
+        // After loading flights, update the filter dropdown with origins from flights
+        updateFilterOrigins();
     }
 }
 
@@ -130,6 +205,45 @@ function buildFilterParams() {
     if (availableOnly) params.set('available_only', '1');
 
     return params;
+}
+
+function updateFilterOrigins() {
+    // Derive unique origins from the full (unfiltered) flights data
+    // We call the API without origin filter to get all origins
+    // But to avoid extra calls, derive from allFlights when no origin filter is set,
+    // or from a cached list
+    // Actually, let's just populate from the destinations that have is_recovery_flight_origin=1
+    // which is already in our destinations array
+    var originList = [];
+    var seen = {};
+
+    // Use destinations with is_recovery_flight_origin = 1 (active flight origins)
+    destinations.forEach(function (d) {
+        if (d.is_recovery_flight_origin && d.code && !seen[d.code]) {
+            seen[d.code] = true;
+            originList.push({
+                code: d.code,
+                label: d.city_name + ' (' + d.code + ')'
+            });
+        }
+    });
+
+    // Also add any origins from flights that might not be in destinations yet
+    allFlights.forEach(function (f) {
+        if (f.origin_code && !seen[f.origin_code]) {
+            seen[f.origin_code] = true;
+            originList.push({
+                code: f.origin_code,
+                label: (f.origin_city || f.origin_code) + ' (' + f.origin_code + ')'
+            });
+        }
+    });
+
+    originList.sort(function (a, b) {
+        return a.label.localeCompare(b.label);
+    });
+
+    populateOriginMultiSelect(originList);
 }
 
 function renderFlights(flights) {
@@ -228,7 +342,13 @@ function applyFilters() {
 }
 
 function clearFilters() {
+    selectedOrigins = [];
     document.getElementById('filter-origin').value = '';
+    updateOriginButtonText();
+    // Uncheck all checkboxes
+    document.querySelectorAll('#origin-multi-list input[type="checkbox"]').forEach(function (cb) {
+        cb.checked = false;
+    });
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-available-only').checked = false;
@@ -240,35 +360,65 @@ function clearFilters() {
 // ---------------------------------------------------------------------------
 
 async function loadDestinations() {
-    const data = await apiFetch('/api/destinations');
-    if (!data || !Array.isArray(data)) return;
+    // Load all destinations (including those without current flights) for the alert dropdown
+    const allDests = await apiFetch('/api/all-destinations');
 
-    destinations = data;
-
-    // Populate origin filter dropdown
-    const filterSelect = document.getElementById('filter-origin');
-    filterSelect.innerHTML = '<option value="">All Origins</option>';
-    const seen = new Set();
-    data.forEach(function (d) {
-        if (d.code && !seen.has(d.code)) {
-            seen.add(d.code);
-            const opt = document.createElement('option');
-            opt.value = d.code;
-            opt.textContent = d.city_name + ' (' + d.code + ')';
-            filterSelect.appendChild(opt);
+    if (allDests && Array.isArray(allDests)) {
+        destinations = allDests;
+    } else {
+        // Fallback to regular destinations endpoint
+        const data = await apiFetch('/api/destinations');
+        if (data && Array.isArray(data)) {
+            destinations = data;
+        } else {
+            return;
         }
+    }
+
+    // Build a set of origin codes that have current flights
+    var activeOriginCodes = new Set();
+    allFlights.forEach(function (f) {
+        if (f.origin_code) activeOriginCodes.add(f.origin_code);
+    });
+    // Also include destinations marked as recovery flight origins
+    destinations.forEach(function (d) {
+        if (d.is_recovery_flight_origin) activeOriginCodes.add(d.code);
     });
 
-    // Populate alert destination dropdown
+    // Populate the filter multi-select (only origins with flights)
+    updateFilterOrigins();
+
+    // Populate alert destination dropdown with ALL destinations
+    populateAlertDropdown(activeOriginCodes);
+}
+
+function populateAlertDropdown(activeOriginCodes) {
     const alertSelect = document.getElementById('alert-destination');
-    alertSelect.innerHTML = '<option value="">Select city...</option>';
-    data.forEach(function (d) {
-        if (d.code) {
-            const opt = document.createElement('option');
-            opt.value = d.code + '|' + (d.city_name || '');
-            opt.textContent = d.city_name + ' (' + d.code + ')';
-            alertSelect.appendChild(opt);
+    alertSelect.innerHTML = '<option value="">Select origin city...</option>';
+
+    // Sort destinations alphabetically by city name
+    var sorted = destinations.slice().sort(function (a, b) {
+        // Active origins first, then alphabetical
+        var aActive = activeOriginCodes.has(a.code);
+        var bActive = activeOriginCodes.has(b.code);
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        return (a.city_name || '').localeCompare(b.city_name || '');
+    });
+
+    var seen = new Set();
+    sorted.forEach(function (d) {
+        if (!d.code || seen.has(d.code)) return;
+        seen.add(d.code);
+
+        var opt = document.createElement('option');
+        opt.value = d.code + '|' + (d.city_name || '');
+        var label = d.city_name + ' (' + d.code + ')';
+        if (!activeOriginCodes.has(d.code)) {
+            label += ' (no current flights)';
         }
+        opt.textContent = label;
+        alertSelect.appendChild(opt);
     });
 }
 
@@ -479,6 +629,8 @@ async function refreshNow() {
 
     // Reload all data
     await Promise.all([loadFlights(), updateStatus(), loadAlerts(), loadNews()]);
+    // Re-populate alert dropdown after flights are refreshed
+    loadDestinations();
 
     // Reset countdown
     refreshCountdown = 60;
@@ -564,9 +716,13 @@ async function saveEmailSettings() {
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Load all data
-    loadFlights();
-    loadDestinations();
+    // Init multi-select
+    initOriginMultiSelect();
+
+    // Load all data - flights first, then destinations (which needs flights for active origins)
+    loadFlights().then(function () {
+        loadDestinations();
+    });
     loadAlerts();
     loadNews();
     updateStatus();

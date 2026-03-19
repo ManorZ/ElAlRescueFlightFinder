@@ -76,8 +76,14 @@ def get_flights():
 
     origin = request.args.get('origin')
     if origin:
-        query += " AND origin_code = ?"
-        params.append(origin.upper())
+        origins = [o.strip().upper() for o in origin.split(',') if o.strip()]
+        if len(origins) == 1:
+            query += " AND origin_code = ?"
+            params.append(origins[0])
+        elif origins:
+            placeholders = ','.join(['?' for _ in origins])
+            query += f" AND origin_code IN ({placeholders})"
+            params.extend(origins)
 
     date_from = request.args.get('date_from')
     if date_from:
@@ -112,8 +118,14 @@ def get_new_flights():
 
     origin = request.args.get('origin')
     if origin:
-        query += " AND origin_code = ?"
-        params.append(origin.upper())
+        origins = [o.strip().upper() for o in origin.split(',') if o.strip()]
+        if len(origins) == 1:
+            query += " AND origin_code = ?"
+            params.append(origins[0])
+        elif origins:
+            placeholders = ','.join(['?' for _ in origins])
+            query += f" AND origin_code IN ({placeholders})"
+            params.extend(origins)
 
     date_from = request.args.get('date_from')
     if date_from:
@@ -156,6 +168,75 @@ def get_destinations():
     except Exception as e:
         logger.error("Error fetching destinations: %s", e)
         return jsonify({"error": "Failed to fetch destinations"}), 500
+
+
+@api.route('/all-destinations')
+def get_all_destinations():
+    """Fetch all El Al destinations from the external API, cache in DB, and return."""
+    import requests as http_requests
+    try:
+        resp = http_requests.get(
+            config.DESTINATIONS_URL,
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.warning("Could not fetch destinations from El Al API: %s", e)
+        # Fall back to whatever is in the DB
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT code, city_name, country_name, continent, is_operational, "
+            "is_recovery_flight_origin FROM destinations ORDER BY city_name"
+        ).fetchall()
+        return jsonify([row_to_dict(r) for r in rows])
+
+    items = data if isinstance(data, list) else data.get("destinations", data.get("Destinations", []))
+
+    conn = get_connection()
+    results = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        code = (item.get("destinationCode") or item.get("code") or
+                item.get("Code") or item.get("airportCode") or "")
+        city_name = (item.get("cityName") or item.get("CityName") or
+                     item.get("city") or "")
+        country_name = (item.get("countryName") or item.get("CountryName") or
+                        item.get("country") or "")
+        continent = (item.get("continentName") or item.get("continent") or
+                     item.get("Continent") or "")
+        if not code or not city_name:
+            continue
+
+        # Upsert into destinations - preserve existing is_recovery_flight_origin
+        conn.execute(
+            """INSERT INTO destinations (code, city_name, country_name, continent,
+                                        is_operational, is_recovery_flight_origin, last_updated)
+            VALUES (?, ?, ?, ?, 1, 0, datetime('now'))
+            ON CONFLICT(code) DO UPDATE SET
+                city_name = excluded.city_name,
+                country_name = excluded.country_name,
+                continent = excluded.continent,
+                last_updated = excluded.last_updated
+            """,
+            (code, city_name, country_name, continent),
+        )
+        results.append({
+            "code": code,
+            "city_name": city_name,
+            "country_name": country_name,
+            "continent": continent,
+        })
+    conn.commit()
+
+    # Now return all destinations from DB (includes is_recovery_flight_origin status)
+    rows = conn.execute(
+        "SELECT code, city_name, country_name, continent, is_operational, "
+        "is_recovery_flight_origin FROM destinations ORDER BY city_name"
+    ).fetchall()
+    return jsonify([row_to_dict(r) for r in rows])
 
 
 # ---------------------------------------------------------------------------

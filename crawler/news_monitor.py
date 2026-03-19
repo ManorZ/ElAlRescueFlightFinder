@@ -322,7 +322,8 @@ def fetch_destinations() -> List[Destination]:
     for item in items:
         if not isinstance(item, dict):
             continue
-        code = item.get("code") or item.get("Code") or item.get("airportCode") or item.get("AirportCode") or ""
+        code = (item.get("destinationCode") or item.get("code") or item.get("Code")
+                or item.get("airportCode") or item.get("AirportCode") or "")
         city_name = item.get("cityName") or item.get("CityName") or item.get("city") or item.get("City") or ""
         if not code or not city_name:
             continue
