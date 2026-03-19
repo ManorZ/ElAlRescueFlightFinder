@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+data/flights.db
+data/flights.db-shm
+data/flights.db-wal
+.env
+app.log
+*.egg-info/
+dist/
+build/
+.claude/
+.playwright-mcp/
+dashboard-screenshot.png
+dashboard-real-data.png
