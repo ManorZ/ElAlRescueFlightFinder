@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Al Rescue Flight Finder</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ====== Header Bar ====== -->
+<header class="header">
+    <div class="header-brand">
+        <h1 class="header-title">El Al Rescue Flight Finder</h1>
+        <p class="header-subtitle">Monitoring rescue flights to Israel</p>
+    </div>
+    <div class="header-status">
+        <div class="status-info">
+            <span class="status-label">Last crawl:</span>
+            <span id="last-crawl-time" class="status-value">--</span>
+        </div>
+        <div class="status-info">
+            <span class="status-label">Next refresh in:</span>
+            <span id="next-refresh-countdown" class="status-value">60s</span>
+        </div>
+        <div class="status-info">
+            <span id="flight-count-badge" class="badge badge-blue">0 flights</span>
+            <span id="new-flight-count-badge" class="badge badge-gold">0 new</span>
+        </div>
+    </div>
+    <div class="header-actions">
+        <button id="refresh-btn" class="btn btn-primary" onclick="refreshNow()">
+            <span id="refresh-icon" class="refresh-icon">&#x21bb;</span>
+            Refresh Now
+        </button>
+        <span id="connection-status" class="connection-dot connected" title="Connected"></span>
+    </div>
+</header>
+
+<!-- ====== Main Layout ====== -->
+<div class="main-layout">
+
+    <!-- ====== Flight Table (center-left) ====== -->
+    <main class="flight-panel">
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label for="filter-origin">Origin City</label>
+                <select id="filter-origin">
+                    <option value="">All Origins</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-date-from">From Date</label>
+                <input type="date" id="filter-date-from">
+            </div>
+            <div class="filter-group">
+                <label for="filter-date-to">To Date</label>
+                <input type="date" id="filter-date-to">
+            </div>
+            <div class="filter-group filter-checkbox">
+                <label>
+                    <input type="checkbox" id="filter-available-only">
+                    Show available only
+                </label>
+            </div>
+            <div class="filter-group">
+                <button class="btn btn-secondary" onclick="applyFilters()">Apply</button>
+                <button class="btn btn-outline" onclick="clearFilters()">Clear</button>
+            </div>
+        </div>
+
+        <!-- Flight Table -->
+        <div class="table-wrapper">
+            <table class="flight-table" id="flight-table">
+                <thead>
+                    <tr>
+                        <th data-sort="origin_city" class="sortable">
+                            Origin City <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="origin_country" class="sortable">
+                            Country <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="flight_number" class="sortable">
+                            Flight # <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="flight_time" class="sortable">
+                            Time <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="flight_date" class="sortable">
+                            Date <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="seats_available" class="sortable">
+                            Seats Available <span class="sort-arrow"></span>
+                        </th>
+                        <th data-sort="first_seen_at" class="sortable">
+                            First Seen <span class="sort-arrow"></span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="flight-table-body">
+                    <tr class="empty-row">
+                        <td colspan="7">Loading flights...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- ====== Alerts Sidebar (right) ====== -->
+    <aside class="alerts-panel">
+        <h2 class="panel-title">Flight Alerts</h2>
+
+        <div id="email-banner" class="email-banner" style="display:none;">
+            <span id="email-banner-icon"></span>
+            <span id="email-banner-text"></span>
+            <button class="btn btn-sm btn-outline" onclick="toggleEmailSettings()" id="email-toggle-btn">Configure</button>
+        </div>
+        <div id="email-settings" style="display:none; margin-bottom: 12px; padding: 10px; background: var(--gray-50); border-radius: var(--radius); border: 1px solid var(--gray-200);">
+            <div class="form-group">
+                <label for="smtp-username">Gmail Address</label>
+                <input type="email" id="smtp-username" placeholder="you@gmail.com">
+            </div>
+            <div class="form-group">
+                <label for="smtp-password">Gmail App Password</label>
+                <input type="password" id="smtp-password" placeholder="xxxx xxxx xxxx xxxx">
+                <small style="color: var(--gray-400); font-size: 11px; margin-top: 2px; display: block;">
+                    Generate one at <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color: var(--blue);">Google Account &rarr; App Passwords</a>
+                    (requires 2-step verification)
+                </small>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="saveEmailSettings()">Save</button>
+            <p id="email-save-status" style="font-size: 12px; margin-top: 4px;"></p>
+        </div>
+
+        <form id="alert-form" class="alert-form" onsubmit="addAlert(event)">
+            <div class="form-group">
+                <label for="alert-destination">Destination</label>
+                <select id="alert-destination" required>
+                    <option value="">Select city...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="alert-date">Trigger Date</label>
+                <input type="date" id="alert-date" required>
+            </div>
+            <div class="form-group">
+                <label for="alert-email">Email Address</label>
+                <input type="email" id="alert-email" placeholder="you@example.com" required>
+            </div>
+            <button type="submit" class="btn btn-success btn-block">Add Alert</button>
+        </form>
+
+        <div class="alert-list-header">
+            <h3>Active Alerts</h3>
+            <span id="alert-count" class="badge badge-blue">0</span>
+        </div>
+        <div id="alert-list" class="alert-list">
+            <p class="empty-message">No alerts configured.</p>
+        </div>
+
+    </aside>
+
+</div>
+
+<!-- ====== News Panel (bottom, collapsible) ====== -->
+<section class="news-panel" id="news-panel">
+    <button class="news-toggle" onclick="toggleNews()" aria-expanded="true">
+        <span class="chevron" id="news-chevron">&#9660;</span>
+        <h2 class="panel-title inline-title">El Al Operational Updates</h2>
+        <span id="news-timestamp" class="news-timestamp"></span>
+    </button>
+    <div class="news-content" id="news-content">
+        <div class="news-section">
+            <h3>Non-Operational Destinations</h3>
+            <div id="non-operational-badges" class="badge-container">
+                <span class="empty-message">No data available</span>
+            </div>
+        </div>
+        <div class="news-section">
+            <h3>Recovery Flight Origins</h3>
+            <div id="recovery-badges" class="badge-container">
+                <span class="empty-message">No data available</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

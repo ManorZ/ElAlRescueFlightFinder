@@ -1,0 +1,758 @@
+/* ============================================================
+   El Al Rescue Flight Finder - Dashboard Styles
+   ============================================================ */
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --blue: #003087;
+    --blue-dark: #002060;
+    --blue-light: #e8edf5;
+    --gold: #c4a35a;
+    --gold-light: #faf3e0;
+    --white: #ffffff;
+    --gray-50: #f9fafb;
+    --gray-100: #f5f5f5;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-600: #4b5563;
+    --gray-800: #1f2937;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --green-bg: #dcfce7;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --red-bg: #fee2e2;
+    --yellow-bg: #fef9c3;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+    --radius: 6px;
+    --radius-lg: 10px;
+    --transition: 0.2s ease;
+}
+
+html {
+    font-size: 15px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* --- Header --- */
+.header {
+    background: var(--blue);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.header-brand {
+    flex-shrink: 0;
+}
+
+.header-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.header-subtitle {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    font-weight: 400;
+}
+
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.status-label {
+    opacity: 0.75;
+}
+
+.status-value {
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Connection dot */
+.connection-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gray-400);
+    transition: background var(--transition);
+    flex-shrink: 0;
+}
+
+.connection-dot.connected {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+
+.connection-dot.disconnected {
+    background: var(--red);
+    box-shadow: 0 0 6px rgba(220,38,38,0.6);
+}
+
+/* Refresh icon spin */
+.refresh-icon {
+    display: inline-block;
+    font-size: 1.1rem;
+    transition: transform var(--transition);
+}
+
+.refresh-icon.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* --- Badges --- */
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.badge-blue {
+    background: rgba(255,255,255,0.2);
+    color: var(--white);
+}
+
+.badge-gold {
+    background: var(--gold);
+    color: var(--blue-dark);
+}
+
+.badge-red {
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid var(--red);
+}
+
+.badge-green {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+
+.badge-gray {
+    background: var(--gray-200);
+    color: var(--gray-600);
+}
+
+/* --- Buttons --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--white);
+    color: var(--blue);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--gray-100);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--blue-dark);
+}
+
+.btn-success {
+    background: var(--green);
+    color: var(--white);
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #15803d;
+}
+
+.btn-danger {
+    background: var(--red);
+    color: var(--white);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--gray-600);
+    border: 1px solid var(--gray-300);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: var(--gray-100);
+}
+
+.btn-sm {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
+/* --- Main Layout (CSS Grid) --- */
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* --- Flight Panel --- */
+.flight-panel {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.filter-group label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.filter-checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    padding-bottom: 0.35rem;
+}
+
+.filter-checkbox label {
+    text-transform: none;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+}
+
+/* Form Inputs */
+select, input[type="date"], input[type="email"], input[type="text"] {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: var(--gray-800);
+    background: var(--white);
+    transition: border-color var(--transition), box-shadow var(--transition);
+    min-width: 0;
+}
+
+select:focus, input[type="date"]:focus, input[type="email"]:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,48,135,0.12);
+}
+
+/* Table */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.flight-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.flight-table thead {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.flight-table th {
+    padding: 0.7rem 0.85rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.flight-table th.sortable {
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.flight-table th.sortable:hover {
+    background: var(--blue-dark);
+}
+
+.sort-arrow {
+    display: inline-block;
+    margin-left: 0.3rem;
+    font-size: 0.7rem;
+    opacity: 0.4;
+}
+
+.sort-arrow::after {
+    content: "\25B4\25BE";
+}
+
+th.sort-asc .sort-arrow {
+    opacity: 1;
+}
+
+th.sort-asc .sort-arrow::after {
+    content: "\25B2";
+}
+
+th.sort-desc .sort-arrow {
+    opacity: 1;
+}
+
+th.sort-desc .sort-arrow::after {
+    content: "\25BC";
+}
+
+.flight-table td {
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid var(--gray-200);
+    white-space: nowrap;
+}
+
+.flight-table tbody tr {
+    transition: background var(--transition);
+}
+
+.flight-table tbody tr:hover {
+    background: var(--blue-light) !important;
+}
+
+/* Row color coding */
+.flight-table tbody tr.row-available {
+    background: var(--green-light);
+}
+
+.flight-table tbody tr.row-sold-out {
+    background: var(--red-light);
+}
+
+.flight-table tbody tr.row-new {
+    background: var(--yellow-bg);
+}
+
+/* Seat badges */
+.seats-available {
+    font-weight: 700;
+    color: var(--green);
+}
+
+.seats-sold-out {
+    font-weight: 700;
+    color: var(--red);
+}
+
+.empty-row td {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--gray-400);
+    font-size: 1rem;
+}
+
+/* --- Alerts Panel (sidebar) --- */
+.alerts-panel {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 1.1rem;
+    height: fit-content;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.email-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.email-banner.not-configured {
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    color: var(--red);
+}
+
+.email-banner.configured {
+    background: var(--green-bg);
+    border: 1px solid var(--green);
+    color: var(--green);
+}
+
+.email-banner .btn {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.panel-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 0.75rem;
+}
+
+.inline-title {
+    display: inline;
+    margin-bottom: 0;
+}
+
+.alert-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.form-group select,
+.form-group input {
+    width: 100%;
+}
+
+.alert-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.alert-list-header h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.alert-list-header .badge {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.alert-card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.75rem;
+    transition: box-shadow var(--transition);
+}
+
+.alert-card:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-card.inactive {
+    opacity: 0.55;
+}
+
+.alert-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.3rem;
+}
+
+.alert-city {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--blue);
+}
+
+.alert-card-actions {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.alert-detail {
+    font-size: 0.78rem;
+    color: var(--gray-600);
+    line-height: 1.4;
+}
+
+.toggle-btn {
+    background: none;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    padding: 0.15rem 0.4rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.toggle-btn:hover {
+    background: var(--gray-200);
+}
+
+.toggle-btn.active {
+    background: var(--green-bg);
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.empty-message {
+    color: var(--gray-400);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+/* --- News Panel (bottom, collapsible) --- */
+.news-panel {
+    margin: 0 1.5rem 1.5rem;
+    max-width: 1600px;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.news-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    background: var(--gray-50);
+    border: none;
+    border-bottom: 1px solid var(--gray-200);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background var(--transition);
+}
+
+.news-toggle:hover {
+    background: var(--gray-200);
+}
+
+.chevron {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    transition: transform 0.3s ease;
+}
+
+.chevron.collapsed {
+    transform: rotate(-90deg);
+}
+
+.news-timestamp {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--gray-400);
+    font-weight: 400;
+}
+
+.news-content {
+    padding: 1rem 1.1rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+}
+
+.news-content.collapsed {
+    max-height: 0;
+    padding: 0 1.1rem;
+    opacity: 0;
+}
+
+.news-section h3 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+}
+
+.badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.badge-container .badge {
+    font-size: 0.82rem;
+    padding: 0.25rem 0.7rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+        padding: 0.75rem;
+    }
+
+    .alerts-panel {
+        position: static;
+        max-height: none;
+    }
+
+    .news-panel {
+        margin: 0 0.75rem 1rem;
+    }
+
+    .header {
+        padding: 0.65rem 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header-status {
+        gap: 0.5rem;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    .filter-group select,
+    .filter-group input[type="date"] {
+        width: 100%;
+    }
+
+    .news-content {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
