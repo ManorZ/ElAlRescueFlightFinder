@@ -495,3 +495,21 @@ def update_email_settings():
 
     logger.info("Email settings updated for %s", username)
     return jsonify({"message": "Email settings saved", "configured": True})
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Defaults
+# ---------------------------------------------------------------------------
+
+@api.route('/dashboard-defaults')
+def get_dashboard_defaults():
+    """Return saved dashboard defaults (pre-selected origins, filters)."""
+    import os
+    defaults_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "dashboard_defaults.json")
+    try:
+        if os.path.exists(defaults_path):
+            with open(defaults_path, "r", encoding="utf-8") as f:
+                return jsonify(json.load(f))
+    except Exception as e:
+        logger.warning("Could not load dashboard defaults: %s", e)
+    return jsonify({})

@@ -1,0 +1,32 @@
+{
+  "description": "El Al origins reachable from Tokyo via Star Alliance airlines",
+  "source_airport": "NRT/HND",
+  "last_updated": "2026-03-20",
+  "origins": [
+    {"code": "LHR", "city": "London", "country": "UK", "via_airline": "ANA (NH)"},
+    {"code": "CDG", "city": "Paris", "country": "France", "via_airline": "ANA (NH)"},
+    {"code": "FRA", "city": "Frankfurt", "country": "Germany", "via_airline": "Lufthansa (LH) / ANA (NH)"},
+    {"code": "MUC", "city": "Munich", "country": "Germany", "via_airline": "Lufthansa (LH)"},
+    {"code": "ZRH", "city": "Zurich", "country": "Switzerland", "via_airline": "Swiss (LX)"},
+    {"code": "GVA", "city": "Geneva", "country": "Switzerland", "via_airline": "Swiss (LX)"},
+    {"code": "VIE", "city": "Vienna", "country": "Austria", "via_airline": "Austrian (OS)"},
+    {"code": "IST", "city": "Istanbul", "country": "Turkey", "via_airline": "Turkish Airlines (TK)"},
+    {"code": "WAW", "city": "Warsaw", "country": "Poland", "via_airline": "LOT (LO)"},
+    {"code": "BKK", "city": "Bangkok", "country": "Thailand", "via_airline": "Thai Airways (TG) / ANA (NH)"},
+    {"code": "BOM", "city": "Mumbai", "country": "India", "via_airline": "Air India (AI)"},
+    {"code": "DEL", "city": "Delhi", "country": "India", "via_airline": "Air India (AI)"},
+    {"code": "SIN", "city": "Singapore", "country": "Singapore", "via_airline": "Singapore Airlines (SQ) / ANA (NH)"},
+    {"code": "JFK", "city": "New York", "country": "USA", "via_airline": "ANA (NH) / United (UA)"},
+    {"code": "EWR", "city": "Newark", "country": "USA", "via_airline": "United (UA)"},
+    {"code": "LAX", "city": "Los Angeles", "country": "USA", "via_airline": "ANA (NH) / United (UA) / Singapore (SQ)"},
+    {"code": "MIA", "city": "Miami", "country": "USA", "via_airline": "ANA (NH) via LAX"},
+    {"code": "ATH", "city": "Athens", "country": "Greece", "via_airline": "Turkish (TK) via IST"},
+    {"code": "FCO", "city": "Rome", "country": "Italy", "via_airline": "Turkish (TK) via IST / Lufthansa (LH) via FRA"},
+    {"code": "MXP", "city": "Milan", "country": "Italy", "via_airline": "Turkish (TK) via IST / Lufthansa (LH) via FRA"},
+    {"code": "BCN", "city": "Barcelona", "country": "Spain", "via_airline": "Turkish (TK) via IST / Lufthansa (LH) via FRA"},
+    {"code": "MAD", "city": "Madrid", "country": "Spain", "via_airline": "Turkish (TK) via IST"},
+    {"code": "BUD", "city": "Budapest", "country": "Hungary", "via_airline": "Turkish (TK) via IST / Lufthansa (LH) via FRA"},
+    {"code": "OTP", "city": "Bucharest", "country": "Romania", "via_airline": "Turkish (TK) via IST"},
+    {"code": "SOF", "city": "Sofia", "country": "Bulgaria", "via_airline": "Turkish (TK) via IST"}
+  ]
+}

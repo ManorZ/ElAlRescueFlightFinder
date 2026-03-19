@@ -14,6 +14,7 @@ let refreshCountdown = 60;
 let countdownInterval = null;
 let autoRefreshInterval = null;
 let selectedOrigins = [];  // multi-select state
+let defaultsApplied = false;
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -244,6 +245,30 @@ function updateFilterOrigins() {
     });
 
     populateOriginMultiSelect(originList);
+}
+
+async function applyDashboardDefaults() {
+    if (defaultsApplied) return;
+    const defaults = await apiFetch('/api/dashboard-defaults');
+    if (!defaults || (!defaults.selected_origins && !defaults.available_only)) return;
+
+    defaultsApplied = true;
+
+    if (defaults.selected_origins && defaults.selected_origins.length > 0) {
+        selectedOrigins = defaults.selected_origins;
+        document.getElementById('filter-origin').value = selectedOrigins.join(',');
+        updateOriginButtonText();
+        // Check the matching checkboxes in the multi-select
+        document.querySelectorAll('#origin-multi-list input[type="checkbox"]').forEach(function (cb) {
+            cb.checked = selectedOrigins.indexOf(cb.value) !== -1;
+        });
+    }
+
+    if (defaults.available_only) {
+        document.getElementById('filter-available-only').checked = true;
+    }
+
+    applyFilters();
 }
 
 function renderFlights(flights) {
@@ -721,7 +746,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Load all data - flights first, then destinations (which needs flights for active origins)
     loadFlights().then(function () {
-        loadDestinations();
+        return loadDestinations();
+    }).then(function () {
+        applyDashboardDefaults();
     });
     loadAlerts();
     loadNews();
