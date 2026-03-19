@@ -14,6 +14,56 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import init_db, get_connection
 
 
+def _send_initial_alerts(conn, trigger_date, email_address, origin_codes):
+    """Check existing flights against newly created alerts and send email notifications."""
+    from services.email_notifier import is_email_configured, send_email, build_flight_alert_email
+
+    if not is_email_configured():
+        print("Email not configured - skipping initial alert emails.")
+        print("Configure email in .env or via the dashboard, then alerts will fire on next crawl.")
+        return
+
+    # Find all matching flights with available seats
+    placeholders = ",".join(["?" for _ in origin_codes])
+    matching = conn.execute(
+        f"""SELECT * FROM flights
+        WHERE origin_code IN ({placeholders}) AND flight_date >= ? AND seats_available > 0
+        ORDER BY origin_code, flight_date, flight_time""",
+        (*origin_codes, trigger_date),
+    ).fetchall()
+
+    if not matching:
+        print("No existing flights with available seats match these alerts.")
+        return
+
+    flights = [dict(row) for row in matching]
+    print(f"Found {len(flights)} existing flight(s) with available seats - sending alert email...")
+
+    subject, html_body = build_flight_alert_email(flights)
+    success = send_email(email_address, subject, html_body)
+
+    if success:
+        # Record in alert_history to prevent duplicate emails on next crawl
+        alert_rows = conn.execute(
+            f"SELECT id, destination_code FROM alert_configs WHERE destination_code IN ({placeholders}) "
+            "AND trigger_date = ? AND email_address = ?",
+            (*origin_codes, trigger_date, email_address),
+        ).fetchall()
+        alert_by_code = {row["destination_code"]: row["id"] for row in alert_rows}
+
+        for flight in flights:
+            alert_id = alert_by_code.get(flight["origin_code"])
+            if alert_id:
+                conn.execute(
+                    "INSERT OR IGNORE INTO alert_history (alert_config_id, flight_id) VALUES (?, ?)",
+                    (alert_id, flight["id"]),
+                )
+        conn.commit()
+        print(f"Alert email sent to {email_address}")
+    else:
+        print("Failed to send alert email. Check your email configuration.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Setup alerts for Star Alliance origins from Tokyo")
     parser.add_argument("--date", required=True, help="Trigger date for alerts (YYYY-MM-DD)")
@@ -63,8 +113,13 @@ def main():
 
     conn.commit()
 
-    # Write dashboard defaults
     origin_codes = [o["code"] for o in origins]
+
+    # Check existing flights and send initial alert emails
+    if created > 0:
+        _send_initial_alerts(conn, args.date, args.email, origin_codes)
+
+    # Write dashboard defaults
     defaults = {
         "selected_origins": origin_codes,
         "available_only": True,
