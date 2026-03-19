@@ -655,7 +655,10 @@ async function refreshNow() {
     // Reload all data
     await Promise.all([loadFlights(), updateStatus(), loadAlerts(), loadNews()]);
     // Re-populate alert dropdown after flights are refreshed
-    loadDestinations();
+    await loadDestinations();
+
+    // Apply dashboard defaults if not yet applied (e.g. setup script ran while dashboard was open)
+    applyDashboardDefaults();
 
     // Reset countdown
     refreshCountdown = 60;
@@ -672,6 +675,7 @@ function startAutoRefresh() {
         refreshCountdown = 60;
         loadFlights();
         updateStatus();
+        loadAlerts();
     }, 60000);
 }
 
