@@ -218,6 +218,7 @@ def delete_alert(alert_id):
         if not row:
             return jsonify({"error": "Alert not found"}), 404
 
+        conn.execute("DELETE FROM alert_history WHERE alert_config_id = ?", (alert_id,))
         conn.execute("DELETE FROM alert_configs WHERE id = ?", (alert_id,))
         conn.commit()
         return '', 204

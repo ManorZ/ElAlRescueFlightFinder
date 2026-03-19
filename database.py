@@ -10,9 +10,10 @@ def get_connection() -> sqlite3.Connection:
     """Get a thread-local database connection."""
     if not hasattr(_local, "connection") or _local.connection is None:
         os.makedirs(os.path.dirname(config.DATABASE_PATH), exist_ok=True)
-        _local.connection = sqlite3.connect(config.DATABASE_PATH)
+        _local.connection = sqlite3.connect(config.DATABASE_PATH, timeout=10)
         _local.connection.row_factory = sqlite3.Row
         _local.connection.execute("PRAGMA journal_mode=WAL")
+        _local.connection.execute("PRAGMA busy_timeout=5000")
         _local.connection.execute("PRAGMA foreign_keys=ON")
     return _local.connection
 
