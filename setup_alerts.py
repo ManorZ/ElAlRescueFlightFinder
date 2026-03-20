@@ -23,8 +23,19 @@ def _send_initial_alerts(conn, trigger_date, email_address, origin_codes):
         print("Configure email in .env or via the dashboard, then alerts will fire on next crawl.")
         return
 
-    # Find all matching flights with available seats
+    # Get alert IDs for these origins
     placeholders = ",".join(["?" for _ in origin_codes])
+    alert_rows = conn.execute(
+        f"SELECT id, destination_code FROM alert_configs WHERE destination_code IN ({placeholders}) "
+        "AND trigger_date = ? AND email_address = ?",
+        (*origin_codes, trigger_date, email_address),
+    ).fetchall()
+    alert_by_code = {row["destination_code"]: row["id"] for row in alert_rows}
+
+    if not alert_by_code:
+        return
+
+    # Find all matching flights with available seats
     matching = conn.execute(
         f"""SELECT * FROM flights
         WHERE origin_code IN ({placeholders}) AND flight_date >= ? AND seats_available > 0
@@ -36,21 +47,29 @@ def _send_initial_alerts(conn, trigger_date, email_address, origin_codes):
         print("No existing flights with available seats match these alerts.")
         return
 
-    flights = [dict(row) for row in matching]
-    print(f"Found {len(flights)} existing flight(s) with available seats - sending alert email...")
+    # Exclude flights already notified (in alert_history)
+    already_notified = set()
+    for row in conn.execute("SELECT alert_config_id, flight_id FROM alert_history").fetchall():
+        already_notified.add((row["alert_config_id"], row["flight_id"]))
+
+    flights = []
+    for row in matching:
+        f = dict(row)
+        alert_id = alert_by_code.get(f["origin_code"])
+        if alert_id and (alert_id, f["id"]) not in already_notified:
+            flights.append(f)
+
+    if not flights:
+        print("No new flights to notify about (all matching flights already notified).")
+        return
+
+    print(f"Found {len(flights)} new flight(s) with available seats - sending alert email...")
 
     subject, html_body = build_flight_alert_email(flights)
     success = send_email(email_address, subject, html_body)
 
     if success:
-        # Record in alert_history to prevent duplicate emails on next crawl
-        alert_rows = conn.execute(
-            f"SELECT id, destination_code FROM alert_configs WHERE destination_code IN ({placeholders}) "
-            "AND trigger_date = ? AND email_address = ?",
-            (*origin_codes, trigger_date, email_address),
-        ).fetchall()
-        alert_by_code = {row["destination_code"]: row["id"] for row in alert_rows}
-
+        # Record in alert_history to prevent duplicate emails on next crawl/run
         for flight in flights:
             alert_id = alert_by_code.get(flight["origin_code"])
             if alert_id:
@@ -116,8 +135,8 @@ def main():
     origin_codes = [o["code"] for o in origins]
 
     # Check existing flights and send initial alert emails
-    if created > 0:
-        _send_initial_alerts(conn, args.date, args.email, origin_codes)
+    # Always run — alert_history prevents duplicate emails for already-notified flights
+    _send_initial_alerts(conn, args.date, args.email, origin_codes)
 
     # Write dashboard defaults
     defaults = {
