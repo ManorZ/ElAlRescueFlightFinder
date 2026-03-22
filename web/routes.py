@@ -419,11 +419,12 @@ def get_status():
 
 @api.route('/refresh', methods=['POST'])
 def trigger_refresh():
-    """Trigger an immediate crawl via the scheduler."""
+    """Run an immediate crawl and return when complete."""
     import scheduler as sched
-    sched.trigger_refresh()
-    logger.info("Manual refresh requested via API")
-    return jsonify({"message": "Refresh triggered"})
+    logger.info("Manual refresh requested via API - starting crawl...")
+    sched.run_full_crawl()
+    logger.info("Manual refresh crawl complete")
+    return jsonify({"message": "Refresh complete"})
 
 
 # ---------------------------------------------------------------------------
