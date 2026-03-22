@@ -51,9 +51,9 @@ def run_full_crawl():
         # Step 3: If new flights found, process email alerts
         if new_count > 0:
             logger.info("Processing alerts for %d new flights...", new_count)
-            new_flights = conn.execute(
+            new_flights = [dict(row) for row in conn.execute(
                 "SELECT * FROM flights WHERE is_new = 1"
-            ).fetchall()
+            ).fetchall()]
             process_alerts(new_flights)
 
         # Step 4: Update crawl log with results
