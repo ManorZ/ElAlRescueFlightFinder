@@ -37,10 +37,10 @@ def fetch_news_content() -> Optional[dict]:
         logger.info("Successfully fetched news content from %s", config.NEWS_CONTENT_URL)
         return data
     except requests.RequestException as e:
-        logger.error("Failed to fetch news content: %s", e)
+        logger.warning("Failed to fetch news content: %s", e)
         return None
     except ValueError as e:
-        logger.error("Failed to parse news content JSON: %s", e)
+        logger.warning("Failed to parse news content JSON: %s", e)
         return None
 
 
