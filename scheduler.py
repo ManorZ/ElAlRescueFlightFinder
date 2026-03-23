@@ -84,6 +84,49 @@ def run_full_crawl():
         conn.commit()
 
 
+def run_price_crawl():
+    """Execute a price crawl cycle: look up prices for flights with available seats."""
+    from crawler.price_crawler import crawl_prices
+    from services.email_notifier import process_price_alerts
+
+    conn = get_connection()
+    started_at = datetime.now(timezone.utc).isoformat()
+
+    cursor = conn.execute(
+        "INSERT INTO crawl_log (started_at, status, crawl_type) VALUES (?, ?, ?)",
+        (started_at, "running", "price"),
+    )
+    crawl_id = cursor.lastrowid
+    conn.commit()
+
+    try:
+        lookups, prices_stored = crawl_prices()
+
+        # Process price-based alerts
+        process_price_alerts()
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """UPDATE crawl_log
+               SET completed_at = ?, flights_found = ?, new_flights = ?, status = ?
+               WHERE id = ?""",
+            (completed_at, lookups, prices_stored, "success", crawl_id),
+        )
+        conn.commit()
+        logger.info("Price crawl completed: %d lookups, %d prices stored", lookups, prices_stored)
+
+    except Exception:
+        logger.exception("Error during price crawl")
+        completed_at = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """UPDATE crawl_log
+               SET completed_at = ?, status = ?, errors = ?
+               WHERE id = ?""",
+            (completed_at, "error", traceback.format_exc(), crawl_id),
+        )
+        conn.commit()
+
+
 def check_refresh():
     """Check if a manual refresh has been requested and run a crawl if so."""
     if _refresh_requested.is_set():
@@ -110,11 +153,19 @@ def start_scheduler():
         id="check_refresh",
         replace_existing=True,
     )
+    scheduler.add_job(
+        run_price_crawl,
+        "interval",
+        minutes=config.PRICE_POLL_INTERVAL_MINUTES,
+        id="price_crawl",
+        replace_existing=True,
+    )
 
     scheduler.start()
     logger.info(
-        "Scheduler started (crawl every %d min, refresh check every 30s)",
+        "Scheduler started (seats every %d min, prices every %d min, refresh check every 30s)",
         config.POLL_INTERVAL_MINUTES,
+        config.PRICE_POLL_INTERVAL_MINUTES,
     )
 
     # Update next_crawl_time from scheduler
@@ -150,7 +201,12 @@ def get_status() -> dict:
         if job and job.next_run_time:
             next_crawl_time = job.next_run_time
 
+    # Price crawl timing
+    price_job = scheduler.get_job("price_crawl") if scheduler.running else None
+    next_price_time = price_job.next_run_time.isoformat() if price_job and price_job.next_run_time else None
+
     return {
         "last_crawl_time": last_crawl_time.isoformat() if last_crawl_time else None,
         "next_crawl_time": next_crawl_time.isoformat() if next_crawl_time else None,
+        "next_price_crawl_time": next_price_time,
     }
