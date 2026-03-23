@@ -118,6 +118,9 @@ def build_flight_alert_email(flights: list[dict]) -> tuple[str, str]:
 
     rows_html = ""
     for f in flights:
+        price_str = ""
+        if f.get("price_amount") is not None:
+            price_str = f"{f['price_currency']} {f['price_amount']:.0f}"
         rows_html += (
             "<tr>"
             f"<td>{html_escape(str(f.get('origin_city', '')))}"
@@ -126,6 +129,7 @@ def build_flight_alert_email(flights: list[dict]) -> tuple[str, str]:
             f"<td>{html_escape(str(f.get('flight_date', '')))}</td>"
             f"<td>{html_escape(str(f.get('flight_time', '')))}</td>"
             f"<td>{html_escape(str(f.get('seats_available', 'N/A')))}</td>"
+            f"<td>{html_escape(price_str) if price_str else '—'}</td>"
             "</tr>\n"
         )
 
@@ -147,6 +151,7 @@ def build_flight_alert_email(flights: list[dict]) -> tuple[str, str]:
                 <th>Date</th>
                 <th>Time</th>
                 <th>Seats</th>
+                <th>Price</th>
             </tr>
         </thead>
         <tbody>
@@ -326,6 +331,91 @@ def process_alerts(new_flights: list[dict]) -> int:
             sent_count += 1
             logger.info("Alert email sent to %s for %d flight(s) from %s",
                          email_address, len(matched), dest_code)
+
+    return sent_count
+
+
+def process_price_alerts() -> int:
+    """Check price-based alert conditions and send emails.
+
+    Finds alerts with max_price set where the cheapest economy fare
+    is at or below the threshold.
+
+    Returns number of alert emails sent.
+    """
+    if not is_email_configured():
+        return 0
+
+    conn = get_connection()
+
+    # Find alerts with price thresholds
+    alerts = conn.execute(
+        """SELECT id, destination_code, destination_city, trigger_date,
+                  email_address, max_price, price_currency
+           FROM alert_configs
+           WHERE is_active = 1 AND max_price IS NOT NULL"""
+    ).fetchall()
+
+    if not alerts:
+        return 0
+
+    sent_count = 0
+    for alert in alerts:
+        alert_id = alert["id"]
+        dest_code = alert["destination_code"]
+        trigger_date = alert["trigger_date"]
+        max_price = alert["max_price"]
+        alert_currency = alert["price_currency"] or "USD"
+
+        # Find flights with seats AND prices below threshold
+        rows = conn.execute(
+            """SELECT f.*, fp.price_amount, fp.price_currency, fp.cabin_class, fp.fare_name
+               FROM flights f
+               JOIN flight_prices fp ON f.flight_number = fp.flight_number
+                                    AND f.flight_date = fp.flight_date
+               WHERE f.origin_code = ?
+                 AND f.flight_date >= ?
+                 AND f.seats_available > 0
+                 AND fp.is_cheapest = 1
+                 AND fp.price_amount <= ?
+                 AND fp.price_currency = ?
+               ORDER BY f.flight_date, f.flight_time""",
+            (dest_code, trigger_date, max_price, alert_currency),
+        ).fetchall()
+
+        if not rows:
+            continue
+
+        flights = [dict(row) for row in rows]
+
+        # Check dedup
+        unsent = []
+        for flight in flights:
+            flight_id = flight.get("id")
+            existing = conn.execute(
+                "SELECT 1 FROM alert_history WHERE alert_config_id = ? AND flight_id = ?",
+                (alert_id, flight_id),
+            ).fetchone()
+            if not existing:
+                unsent.append(flight)
+
+        if not unsent:
+            continue
+
+        subject, html_body = build_flight_alert_email(unsent)
+        success = send_email(alert["email_address"], subject, html_body)
+
+        if success:
+            for flight in unsent:
+                conn.execute(
+                    "INSERT OR IGNORE INTO alert_history (alert_config_id, flight_id) VALUES (?, ?)",
+                    (alert_id, flight["id"]),
+                )
+            conn.commit()
+            sent_count += 1
+            logger.info("Price alert sent to %s: %d flight(s) from %s under %s %s",
+                       alert["email_address"], len(unsent), dest_code,
+                       max_price, alert_currency)
 
     return sent_count
 
