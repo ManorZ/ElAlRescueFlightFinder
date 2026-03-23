@@ -33,6 +33,9 @@
             <span id="refresh-icon" class="refresh-icon">&#x21bb;</span>
             Refresh Now
         </button>
+        <button id="refresh-prices-btn" class="btn btn-primary" onclick="refreshPrices()">
+            Refresh Prices
+        </button>
         <span id="connection-status" class="connection-dot connected" title="Connected"></span>
     </div>
 </header>
@@ -99,6 +102,9 @@
                         <th data-sort="seats_available" class="sortable">
                             Seats Available <span class="sort-arrow"></span>
                         </th>
+                        <th data-sort="cheapest_price" class="sortable">
+                            Price <span class="sort-arrow"></span>
+                        </th>
                         <th data-sort="first_seen_at" class="sortable">
                             First Seen <span class="sort-arrow"></span>
                         </th>
@@ -106,7 +112,7 @@
                 </thead>
                 <tbody id="flight-table-body">
                     <tr class="empty-row">
-                        <td colspan="7">Loading flights...</td>
+                        <td colspan="8">Loading flights...</td>
                     </tr>
                 </tbody>
             </table>
@@ -153,6 +159,10 @@
             <div class="form-group">
                 <label for="alert-email">Email Address</label>
                 <input type="email" id="alert-email" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="alert-max-price">Max Price (USD) <small style="color: var(--gray-400);">optional</small></label>
+                <input type="number" id="alert-max-price" placeholder="e.g. 1500" min="0" step="1">
             </div>
             <button type="submit" class="btn btn-success btn-block">Add Alert</button>
         </form>

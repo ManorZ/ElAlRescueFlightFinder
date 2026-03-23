@@ -275,7 +275,7 @@ function renderFlights(flights) {
     const tbody = document.getElementById('flight-table-body');
 
     if (!flights || flights.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No flights found</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No flights found</td></tr>';
         return;
     }
 
@@ -305,6 +305,10 @@ function renderFlights(flights) {
         html += '<td>' + escapeHtml(f.flight_time || '--') + '</td>';
         html += '<td>' + formatDate(f.flight_date) + '</td>';
         html += '<td class="' + seatsClass + '">' + seatsText + '</td>';
+        const priceText = f.cheapest_price != null
+            ? (f.price_currency || 'USD') + ' ' + Math.round(f.cheapest_price)
+            : '\u2014';
+        html += '<td>' + priceText + '</td>';
         html += '<td>' + timeAgo(f.first_seen_at) + '</td>';
         html += '</tr>';
     }
@@ -327,6 +331,15 @@ function sortFlights() {
             va = Number(va) || 0;
             vb = Number(vb) || 0;
             return (va - vb) * dir;
+        }
+
+        if (col === 'cheapest_price') {
+            const aNullPrice = a[col] == null;
+            const bNullPrice = b[col] == null;
+            if (aNullPrice && bNullPrice) return 0;
+            if (aNullPrice) return 1;  // nulls always sort to end
+            if (bNullPrice) return -1;
+            return (Number(a[col]) - Number(b[col])) * dir;
         }
 
         if (typeof va === 'string') va = va.toLowerCase();
@@ -501,11 +514,16 @@ async function addAlert(e) {
 
     if (!triggerDate || !emailAddress) return;
 
+    const maxPriceRaw = document.getElementById('alert-max-price').value;
+    const maxPrice = maxPriceRaw !== '' ? Number(maxPriceRaw) : null;
+
     const body = {
         destination_code: destinationCode,
         destination_city: destinationCity,
         trigger_date: triggerDate,
-        email_address: emailAddress
+        email_address: emailAddress,
+        max_price: maxPrice,
+        price_currency: 'USD'
     };
 
     const result = await apiFetch('/api/alerts', {
@@ -519,6 +537,7 @@ async function addAlert(e) {
         document.getElementById('alert-destination').value = '';
         document.getElementById('alert-date').value = '';
         document.getElementById('alert-email').value = '';
+        document.getElementById('alert-max-price').value = '';
         loadAlerts();
     }
 }
@@ -617,6 +636,19 @@ async function updateStatus() {
     document.getElementById('last-crawl-time').textContent =
         data.last_crawl_time ? timeAgo(data.last_crawl_time) : 'Never';
 
+    if (data.last_price_crawl) {
+        let priceEl = document.getElementById('last-price-crawl-time');
+        if (!priceEl) {
+            const statusDiv = document.getElementById('last-crawl-time').closest('.status-info');
+            const priceStatus = document.createElement('div');
+            priceStatus.className = 'status-info';
+            priceStatus.innerHTML = '<span class="status-label">Last price check:</span> <span id="last-price-crawl-time" class="status-value"></span>';
+            statusDiv.parentNode.insertBefore(priceStatus, statusDiv.nextSibling);
+            priceEl = document.getElementById('last-price-crawl-time');
+        }
+        priceEl.textContent = timeAgo(data.last_price_crawl);
+    }
+
     const flightBadge = document.getElementById('flight-count-badge');
     flightBadge.textContent = (data.total_flights || 0) + ' flights';
 
@@ -666,6 +698,23 @@ async function refreshNow() {
 
     icon.classList.remove('spinning');
     btn.disabled = false;
+}
+
+async function refreshPrices() {
+    const btn = document.getElementById('refresh-prices-btn');
+    btn.disabled = true;
+    btn.textContent = 'Checking prices...';
+    try {
+        await fetch('/api/refresh-prices', { method: 'POST' });
+        btn.textContent = 'Price check started';
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = 'Refresh Prices';
+        }, 5000);
+    } catch (e) {
+        btn.textContent = 'Refresh Prices';
+        btn.disabled = false;
+    }
 }
 
 function startAutoRefresh() {
