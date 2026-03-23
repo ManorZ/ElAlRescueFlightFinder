@@ -275,7 +275,7 @@ function renderFlights(flights) {
     const tbody = document.getElementById('flight-table-body');
 
     if (!flights || flights.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No flights found</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No flights found</td></tr>';
         return;
     }
 
@@ -309,6 +309,7 @@ function renderFlights(flights) {
             ? (f.price_currency || 'USD') + ' ' + Math.round(f.cheapest_price)
             : '\u2014';
         html += '<td>' + priceText + '</td>';
+        html += '<td style="text-align:center;"><input type="checkbox" class="flight-select" data-origin="' + escapeHtml(f.origin_code || '') + '" data-date="' + escapeHtml(f.flight_date || '') + '" onchange="updateSelectedCount()"></td>';
         html += '<td>' + timeAgo(f.first_seen_at) + '</td>';
         html += '</tr>';
     }
@@ -715,6 +716,67 @@ async function refreshPrices() {
         btn.textContent = 'Refresh Prices';
         btn.disabled = false;
     }
+}
+
+function updateSelectedCount() {
+    const checked = document.querySelectorAll('.flight-select:checked');
+    const btn = document.getElementById('check-selected-prices-btn');
+    const countSpan = document.getElementById('selected-count');
+    countSpan.textContent = checked.length;
+    btn.style.display = checked.length > 0 ? 'inline-block' : 'none';
+
+    // Update select-all checkbox state
+    const all = document.querySelectorAll('.flight-select');
+    const selectAll = document.getElementById('select-all-flights');
+    if (selectAll) {
+        selectAll.checked = all.length > 0 && checked.length === all.length;
+        selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    }
+}
+
+function toggleSelectAll(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.flight-select');
+    checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
+    updateSelectedCount();
+}
+
+async function checkSelectedPrices() {
+    const checked = document.querySelectorAll('.flight-select:checked');
+    if (checked.length === 0) return;
+
+    // Deduplicate by origin+date
+    const pairs = new Set();
+    checked.forEach(cb => {
+        pairs.add(cb.dataset.origin + '|' + cb.dataset.date);
+    });
+
+    const btn = document.getElementById('check-selected-prices-btn');
+    btn.disabled = true;
+    const total = pairs.size;
+    let done = 0;
+
+    for (const pair of pairs) {
+        const [origin, date] = pair.split('|');
+        done++;
+        btn.textContent = 'Checking ' + done + '/' + total + '...';
+        try {
+            await fetch('/api/refresh-prices?origin=' + encodeURIComponent(origin) + '&date=' + encodeURIComponent(date), { method: 'POST' });
+        } catch (e) {
+            console.error('Price check failed for', origin, date, e);
+        }
+    }
+
+    btn.textContent = 'Done! Refreshing...';
+
+    // Uncheck all and refresh the table after a short delay
+    setTimeout(async () => {
+        document.querySelectorAll('.flight-select:checked').forEach(cb => { cb.checked = false; });
+        const selectAll = document.getElementById('select-all-flights');
+        if (selectAll) selectAll.checked = false;
+        updateSelectedCount();
+        await refreshData();
+        btn.disabled = false;
+    }, 3000);
 }
 
 function startAutoRefresh() {

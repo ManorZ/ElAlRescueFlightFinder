@@ -36,6 +36,9 @@
         <button id="refresh-prices-btn" class="btn btn-primary" onclick="refreshPrices()">
             Refresh Prices
         </button>
+        <button id="check-selected-prices-btn" class="btn btn-outline" onclick="checkSelectedPrices()" style="display:none;">
+            Check Prices for Selected (<span id="selected-count">0</span>)
+        </button>
         <span id="connection-status" class="connection-dot connected" title="Connected"></span>
     </div>
 </header>
@@ -105,6 +108,9 @@
                         <th data-sort="cheapest_price" class="sortable">
                             Price <span class="sort-arrow"></span>
                         </th>
+                        <th style="width:40px;">
+                            <input type="checkbox" id="select-all-flights" onchange="toggleSelectAll(this)" title="Select all">
+                        </th>
                         <th data-sort="first_seen_at" class="sortable">
                             First Seen <span class="sort-arrow"></span>
                         </th>
@@ -112,7 +118,7 @@
                 </thead>
                 <tbody id="flight-table-body">
                     <tr class="empty-row">
-                        <td colspan="8">Loading flights...</td>
+                        <td colspan="9">Loading flights...</td>
                     </tr>
                 </tbody>
             </table>
