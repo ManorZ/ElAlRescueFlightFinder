@@ -428,6 +428,28 @@ def trigger_refresh():
 
 
 # ---------------------------------------------------------------------------
+# Log Management
+# ---------------------------------------------------------------------------
+
+@api.route('/clear-log', methods=['POST'])
+def clear_log():
+    """Clear the application log file and start fresh."""
+    import os
+    from datetime import datetime
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app.log")
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write(f"{'=' * 72}\n")
+            f.write(f"  LOG CLEARED: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"{'=' * 72}\n\n")
+        logger.info("Log file cleared via dashboard")
+        return jsonify({"message": "Log cleared"})
+    except Exception as e:
+        logger.error("Failed to clear log: %s", e)
+        return jsonify({"error": "Failed to clear log"}), 500
+
+
+# ---------------------------------------------------------------------------
 # Email Settings
 # ---------------------------------------------------------------------------
 
@@ -496,3 +518,21 @@ def update_email_settings():
 
     logger.info("Email settings updated for %s", username)
     return jsonify({"message": "Email settings saved", "configured": True})
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Defaults
+# ---------------------------------------------------------------------------
+
+@api.route('/dashboard-defaults')
+def get_dashboard_defaults():
+    """Return saved dashboard defaults (pre-selected origins, filters)."""
+    import os
+    defaults_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "dashboard_defaults.json")
+    try:
+        if os.path.exists(defaults_path):
+            with open(defaults_path, "r", encoding="utf-8") as f:
+                return jsonify(json.load(f))
+    except Exception as e:
+        logger.warning("Could not load dashboard defaults: %s", e)
+    return jsonify({})

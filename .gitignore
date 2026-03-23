@@ -5,6 +5,7 @@ venv/
 data/flights.db
 data/flights.db-shm
 data/flights.db-wal
+data/dashboard_defaults.json
 .env
 app.log
 *.egg-info/

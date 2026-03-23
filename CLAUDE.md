@@ -20,6 +20,16 @@ python app.py
 
 Dashboard opens at `http://127.0.0.1:5000`. System tray icon provides quick access.
 
+### Star Alliance Setup (Tokyo → Israel)
+
+```bash
+python setup_alerts.py --date 2026-03-20 --email you@gmail.com
+# Or combined with app launch:
+setup_and_run.bat
+```
+
+Auto-creates 25 alerts for El Al origins reachable from Tokyo via Star Alliance connections. On creation, immediately checks existing flights and sends email alerts for any with available seats.
+
 ## Architecture
 
 ```
@@ -37,6 +47,9 @@ app.py (entry point)
   │     └── services/email_notifier.py    - Gmail SMTP alerts
   ├── System tray (pystray)
   │     └── tray_app.py
+  ├── Setup scripts
+  │     ├── setup_alerts.py      - Star Alliance bulk alert creator
+  │     └── setup_and_run.bat    - Setup + launch combined
   └── SQLite database
         └── data/flights.db
 ```
@@ -97,6 +110,7 @@ Parsing rules:
 | GET | `/api/news` | Latest news snapshot |
 | GET | `/api/status` | App status (crawl times, counts) |
 | POST | `/api/refresh` | Trigger immediate crawl |
+| POST | `/api/clear-log` | Clear app.log and start fresh |
 | GET | `/api/email-settings` | Email config status (no secrets) |
 | POST | `/api/email-settings` | Update SMTP credentials |
 
