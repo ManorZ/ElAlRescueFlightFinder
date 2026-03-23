@@ -42,6 +42,7 @@ app.py (entry point)
   │     └── scheduler.py         - Orchestrates crawl cycle
   ├── Crawlers
   │     ├── crawler/seat_availability.py  - Playwright-based API fetch
+  │     ├── crawler/price_crawler.py      - Playwright-based booking price scraper
   │     └── crawler/news_monitor.py       - News page content monitor
   ├── Services
   │     └── services/email_notifier.py    - Gmail SMTP alerts
@@ -85,6 +86,19 @@ Parsing rules:
 - Alert deduplication via `alert_history` table prevents repeat emails
 - Email settings configurable from dashboard UI (persisted to `.env`)
 
+### Price Scraping
+
+The seat availability API has no pricing data. Prices come from a separate booking engine at `booking.elal.com`, accessed via a multi-step Playwright flow:
+
+1. Navigate to `elal.com/eng/book-a-flight/` (establishes session)
+2. Fill search form (one-way, origin → TLV, date, 1 adult)
+3. Submit → navigates to `booking.elal.com`
+4. Intercept `cash/outbound` API response via `page.route()` (intercept-and-passthrough)
+
+Direct access to `booking.elal.com` is blocked — the session must flow from the main site. This is implemented in `crawler/price_crawler.py`, independent of the seat availability crawler.
+
+The price crawler runs every 6 hours (configurable) and checks all origin+date pairs with available seats. Prices are stored in `flight_prices` with upsert semantics (one row per flight+date+fare).
+
 ## Database Schema (SQLite)
 
 6 tables in `data/flights.db`:
@@ -94,6 +108,7 @@ Parsing rules:
 - **alert_history** - Tracks which alerts were sent to prevent duplicates
 - **news_snapshots** - Historical news page content with change detection
 - **crawl_log** - Crawl run history for status display
+- **flight_prices** - Price snapshots per flight+fare. UNIQUE(flight_number, flight_date, fare_name).
 
 ## API Endpoints
 
@@ -113,6 +128,8 @@ Parsing rules:
 | POST | `/api/clear-log` | Clear app.log and start fresh |
 | GET | `/api/email-settings` | Email config status (no secrets) |
 | POST | `/api/email-settings` | Update SMTP credentials |
+| GET | `/api/prices` | Flight prices (filters: origin, date, flight_number) |
+| POST | `/api/refresh-prices` | Trigger background price crawl (optional origin, date) |
 
 ## Configuration
 
@@ -122,6 +139,8 @@ All settings in `.env` (loaded by `config.py`):
 - `POLL_INTERVAL_MINUTES` - Crawl frequency (default: 60)
 - `NEWS_POLL_INTERVAL_MINUTES` - News check frequency (default: 30)
 - `FLASK_PORT` - Dashboard port (default: 5000)
+- `PRICE_POLL_INTERVAL_MINUTES` - Price crawl frequency (default: 360)
+- `PRICE_MARKET` - Market code for booking API currency (default: US)
 
 ## Tech Stack
 
@@ -139,5 +158,5 @@ All settings in `.env` (loaded by `config.py`):
 1. **Bot protection** - Direct HTTP requests to El Al APIs are blocked. Playwright is required for automated crawling. If Playwright breaks, the app gracefully degrades (shows stale data).
 2. **Seat count cap** - The API reports max 9 seats ("9+"). Actual availability may be higher.
 3. **News parser** - The news page HTML structure may change; regex-based parsing is brittle.
-4. **No price data** - Only seat availability, not prices. Booking must be done on elal.com.
+4. **Prices are ballpark** - Prices come from the booking engine's base fare display (`netPrice.cash.amount`). Final price with taxes/fees may differ. The booking flow is session-dependent and more fragile than the seat availability API.
 5. **Single user** - Designed for local single-user use, not multi-tenant.
