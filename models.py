@@ -61,3 +61,18 @@ class CrawlLog:
     new_flights: int = 0
     errors: Optional[str] = None
     id: Optional[int] = None
+
+
+@dataclass
+class FlightPrice:
+    flight_number: str
+    flight_date: str
+    origin_code: str
+    cabin_class: str
+    price_amount: float
+    price_currency: str
+    fare_name: Optional[str] = None
+    seats_in_fare: Optional[int] = None
+    is_cheapest: bool = False
+    fetched_at: Optional[str] = None
+    id: Optional[int] = None
