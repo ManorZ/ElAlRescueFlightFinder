@@ -71,35 +71,43 @@ def index():
 def get_flights():
     """Return all flights TO Israel, with optional filters."""
     conn = get_connection()
-    query = "SELECT * FROM flights WHERE 1=1"
+    query = """SELECT f.*,
+                      fp.price_amount AS cheapest_price,
+                      fp.price_currency
+               FROM flights f
+               LEFT JOIN flight_prices fp
+                   ON f.flight_number = fp.flight_number
+                   AND f.flight_date = fp.flight_date
+                   AND fp.is_cheapest = 1
+               WHERE 1=1"""
     params = []
 
     origin = request.args.get('origin')
     if origin:
         origins = [o.strip().upper() for o in origin.split(',') if o.strip()]
         if len(origins) == 1:
-            query += " AND origin_code = ?"
+            query += " AND f.origin_code = ?"
             params.append(origins[0])
         elif origins:
             placeholders = ','.join(['?' for _ in origins])
-            query += f" AND origin_code IN ({placeholders})"
+            query += f" AND f.origin_code IN ({placeholders})"
             params.extend(origins)
 
     date_from = request.args.get('date_from')
     if date_from:
-        query += " AND flight_date >= ?"
+        query += " AND f.flight_date >= ?"
         params.append(date_from)
 
     date_to = request.args.get('date_to')
     if date_to:
-        query += " AND flight_date <= ?"
+        query += " AND f.flight_date <= ?"
         params.append(date_to)
 
     available_only = request.args.get('available_only')
     if available_only and available_only.lower() in ('1', 'true', 'yes'):
-        query += " AND seats_available > 0"
+        query += " AND f.seats_available > 0"
 
-    query += " ORDER BY flight_date ASC, flight_time ASC"
+    query += " ORDER BY f.flight_date ASC, f.flight_time ASC"
 
     try:
         rows = conn.execute(query, params).fetchall()
@@ -149,6 +157,56 @@ def get_new_flights():
     except Exception as e:
         logger.error("Error fetching new flights: %s", e)
         return jsonify({"error": "Failed to fetch new flights"}), 500
+
+
+# ---------------------------------------------------------------------------
+# Prices
+# ---------------------------------------------------------------------------
+
+@api.route('/prices')
+def get_prices():
+    """Return latest flight prices, with optional filters."""
+    conn = get_connection()
+    query = "SELECT * FROM flight_prices WHERE 1=1"
+    params = []
+
+    origin = request.args.get('origin')
+    if origin:
+        query += " AND origin_code = ?"
+        params.append(origin.upper())
+
+    date = request.args.get('date')
+    if date:
+        query += " AND flight_date = ?"
+        params.append(date)
+
+    flight_number = request.args.get('flight_number')
+    if flight_number:
+        query += " AND flight_number = ?"
+        params.append(flight_number.upper())
+
+    query += " ORDER BY flight_date, flight_number, price_amount"
+
+    try:
+        rows = conn.execute(query, params).fetchall()
+        return jsonify([row_to_dict(r) for r in rows])
+    except Exception as e:
+        logger.error("Error fetching prices: %s", e)
+        return jsonify({"error": "Failed to fetch prices"}), 500
+
+
+@api.route('/refresh-prices', methods=['POST'])
+def refresh_prices():
+    """Trigger a price crawl. Optionally for a specific origin+date."""
+    origin = request.args.get('origin') or (request.get_json(silent=True) or {}).get('origin')
+    date = request.args.get('date') or (request.get_json(silent=True) or {}).get('date')
+
+    def _run():
+        from crawler.price_crawler import crawl_prices
+        crawl_prices(origin=origin, date=date)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started", "origin": origin, "date": date})
 
 
 # ---------------------------------------------------------------------------
@@ -269,11 +327,14 @@ def create_alert():
 
     conn = get_connection()
     try:
+        max_price = data.get('max_price')
+        price_currency = data.get('price_currency', 'USD')
         cursor = conn.execute(
-            "INSERT INTO alert_configs (destination_code, destination_city, trigger_date, email_address) "
-            "VALUES (?, ?, ?, ?)",
+            """INSERT INTO alert_configs
+               (destination_code, destination_city, trigger_date, email_address, max_price, price_currency)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             (data['destination_code'], data['destination_city'],
-             data['trigger_date'], data['email_address'])
+             data['trigger_date'], data['email_address'], max_price, price_currency)
         )
         conn.commit()
         alert_id = cursor.lastrowid
@@ -309,15 +370,11 @@ def delete_alert(alert_id):
 
 
 @api.route('/alerts/<int:alert_id>', methods=['PUT'])
-def toggle_alert(alert_id):
-    """Toggle an alert active/inactive."""
+def update_alert(alert_id):
+    """Update an alert: toggle active/inactive and/or set price threshold."""
     data = request.get_json(silent=True)
-    if data is None or 'is_active' not in data:
-        return jsonify({"error": "Request body must contain 'is_active' (0 or 1)"}), 400
-
-    is_active = data['is_active']
-    if is_active not in (0, 1):
-        return jsonify({"error": "'is_active' must be 0 or 1"}), 400
+    if data is None:
+        return jsonify({"error": "Request body must be JSON"}), 400
 
     conn = get_connection()
     try:
@@ -325,17 +382,27 @@ def toggle_alert(alert_id):
         if not row:
             return jsonify({"error": "Alert not found"}), 404
 
-        conn.execute(
-            "UPDATE alert_configs SET is_active = ? WHERE id = ?",
-            (is_active, alert_id)
-        )
+        if 'is_active' in data:
+            is_active = data['is_active']
+            if is_active not in (0, 1):
+                return jsonify({"error": "'is_active' must be 0 or 1"}), 400
+            conn.execute("UPDATE alert_configs SET is_active = ? WHERE id = ?", (is_active, alert_id))
+
+        if 'max_price' in data:
+            max_price = data['max_price']
+            if max_price is not None and not isinstance(max_price, (int, float)):
+                return jsonify({"error": "'max_price' must be a number or null"}), 400
+            conn.execute("UPDATE alert_configs SET max_price = ? WHERE id = ?", (max_price, alert_id))
+
+        if 'price_currency' in data:
+            conn.execute("UPDATE alert_configs SET price_currency = ? WHERE id = ?",
+                        (data['price_currency'], alert_id))
+
         conn.commit()
-        updated = conn.execute(
-            "SELECT * FROM alert_configs WHERE id = ?", (alert_id,)
-        ).fetchone()
+        updated = conn.execute("SELECT * FROM alert_configs WHERE id = ?", (alert_id,)).fetchone()
         return jsonify(row_to_dict(updated))
     except Exception as e:
-        logger.error("Error toggling alert %s: %s", alert_id, e)
+        logger.error("Error updating alert %s: %s", alert_id, e)
         return jsonify({"error": "Failed to update alert"}), 500
 
 
@@ -383,9 +450,17 @@ def get_status():
         # Last crawl info
         crawl_row = conn.execute(
             "SELECT completed_at FROM crawl_log WHERE status = 'success' "
+            "AND (crawl_type = 'seats' OR crawl_type IS NULL) "
             "ORDER BY completed_at DESC LIMIT 1"
         ).fetchone()
         last_crawl = crawl_row['completed_at'] if crawl_row else None
+
+        # Last price crawl
+        price_crawl_row = conn.execute(
+            "SELECT completed_at FROM crawl_log WHERE status = 'success' AND crawl_type = 'price' "
+            "ORDER BY completed_at DESC LIMIT 1"
+        ).fetchone()
+        last_price_crawl = price_crawl_row['completed_at'] if price_crawl_row else None
 
         # Flight counts
         total_row = conn.execute("SELECT COUNT(*) AS cnt FROM flights").fetchone()
@@ -404,6 +479,8 @@ def get_status():
         return jsonify({
             "last_crawl_time": sched_status.get("last_crawl_time") or last_crawl,
             "next_crawl_time": sched_status.get("next_crawl_time"),
+            "last_price_crawl": last_price_crawl,
+            "next_price_crawl_time": sched_status.get("next_price_crawl_time"),
             "total_flights": total_row['cnt'] if total_row else 0,
             "new_flights": new_row['cnt'] if new_row else 0,
             "email_configured": email_configured,
