@@ -25,6 +25,16 @@ def close_connection():
         _local.connection = None
 
 
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, col_type: str):
+    """Add a column to a table if it doesn't already exist."""
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        conn.commit()
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e).lower():
+            raise
+
+
 def init_db():
     """Create all tables if they don't exist."""
     conn = get_connection()
@@ -92,5 +102,28 @@ def init_db():
             errors TEXT,
             status TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS flight_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            flight_number TEXT NOT NULL,
+            flight_date TEXT NOT NULL,
+            origin_code TEXT NOT NULL,
+            cabin_class TEXT NOT NULL,
+            fare_name TEXT,
+            price_amount REAL NOT NULL,
+            price_currency TEXT NOT NULL,
+            seats_in_fare INTEGER,
+            is_cheapest INTEGER DEFAULT 0,
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(flight_number, flight_date, fare_name)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_flight_prices_lookup
+            ON flight_prices(flight_number, flight_date, is_cheapest);
     """)
     conn.commit()
+
+    # Migrations for existing tables
+    _add_column_if_missing(conn, "crawl_log", "crawl_type", "TEXT DEFAULT 'seats'")
+    _add_column_if_missing(conn, "alert_configs", "max_price", "REAL")
+    _add_column_if_missing(conn, "alert_configs", "price_currency", "TEXT DEFAULT 'USD'")
