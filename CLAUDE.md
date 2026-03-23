@@ -99,9 +99,13 @@ Direct access to `booking.elal.com` is blocked — the session must flow from th
 
 The price crawler runs every 6 hours (configurable) and checks all origin+date pairs with available seats. Prices are stored in `flight_prices` with upsert semantics (one row per flight+date+fare).
 
+### SQLite Migrations
+
+SQLite has no `ADD COLUMN IF NOT EXISTS`. Use `_add_column_if_missing()` in `database.py` which wraps ALTER TABLE in try/except for "duplicate column name". New tables use `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` in the `init_db()` executescript block. Migrations go after `conn.commit()` at the end of `init_db()`.
+
 ## Database Schema (SQLite)
 
-6 tables in `data/flights.db`:
+7 tables in `data/flights.db`:
 - **flights** - Each flight+date combination with seat count. UNIQUE(flight_number, flight_date).
 - **destinations** - All El Al destinations with operational status
 - **alert_configs** - User alert rules (origin + trigger_date + email)
@@ -120,7 +124,7 @@ The price crawler runs every 6 hours (configurable) and checks all origin+date p
 | GET | `/api/destinations` | All destinations with operational status |
 | GET | `/api/alerts` | List alert configurations |
 | POST | `/api/alerts` | Create alert (sends immediate check) |
-| PUT | `/api/alerts/<id>` | Toggle alert active/inactive |
+| PUT | `/api/alerts/<id>` | Update alert (toggle active, set max_price) |
 | DELETE | `/api/alerts/<id>` | Delete alert |
 | GET | `/api/news` | Latest news snapshot |
 | GET | `/api/status` | App status (crawl times, counts) |
