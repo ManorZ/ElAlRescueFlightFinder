@@ -9,6 +9,7 @@ import threading
 import webbrowser
 import sys
 import os
+from datetime import datetime
 
 # Ensure the project root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,16 +20,21 @@ from web import create_app
 import scheduler
 from tray_app import run_tray
 
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.log")
+
+# Clear previous log and start fresh each session
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"{'=' * 72}\n")
+    f.write(f"  SESSION START: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    f.write(f"{'=' * 72}\n\n")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.log"),
-            encoding="utf-8",
-        ),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
     ],
 )
 logger = logging.getLogger(__name__)

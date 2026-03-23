@@ -20,6 +20,16 @@ python app.py
 
 Dashboard opens at `http://127.0.0.1:5000`. System tray icon provides quick access.
 
+### Star Alliance Setup (Tokyo → Israel)
+
+```bash
+python setup_alerts.py --date 2026-03-20 --email you@gmail.com
+# Or combined with app launch:
+setup_and_run.bat
+```
+
+Auto-creates 25 alerts for El Al origins reachable from Tokyo via Star Alliance connections. On creation, immediately checks existing flights and sends email alerts for any with available seats.
+
 ## Architecture
 
 ```
@@ -37,6 +47,9 @@ app.py (entry point)
   │     └── services/email_notifier.py    - Gmail SMTP alerts
   ├── System tray (pystray)
   │     └── tray_app.py
+  ├── Setup scripts
+  │     ├── setup_alerts.py      - Star Alliance bulk alert creator
+  │     └── setup_and_run.bat    - Setup + launch combined
   └── SQLite database
         └── data/flights.db
 ```
@@ -57,38 +70,9 @@ This is implemented in `crawler/seat_availability.py:fetch_via_playwright()`.
 
 ### API Response Structure
 
-The seat availability API returns:
-```json
-{
-  "responseCode": 0,
-  "runDateTime": "2026-03-19 15:41",
-  "dateRange": {"dates": ["19.03", "20.03", ...]},
-  "flightsToIsrael": [
-    {
-      "origin": "SOF",
-      "flights": [{
-        "flightNumber": "LY452",
-        "routeFrom": "SOF",
-        "routeTo": "TLV",
-        "segmentDepTime": "12:40",
-        "isFlightAvailable": false,
-        "originDetails": {
-          "cityName": "Sofia",
-          "countryName": "Bulgaria",
-          "continentName": "Europe"
-        },
-        "flightsDates": [
-          {"flightsDate": "19.03", "seatCount": 0},
-          {"flightsDate": "20.03"}
-        ]
-      }]
-    }
-  ],
-  "flightsFromIsrael": [...]
-}
-```
+The seat availability API (`/api/SeatAvailability/lang/eng/flights`) returns `flightsToIsrael[]` and `flightsFromIsrael[]`. Each origin has `flights[]`, each flight has `flightsDates[]` with `{flightsDate, seatCount?}`.
 
-Key parsing rules:
+Parsing rules:
 - Only process `flightsToIsrael` array
 - A `flightsDates` entry with no `seatCount` means no flight on that date
 - Dates are in `DD.MM` format, converted to `YYYY-MM-DD` for storage
@@ -126,6 +110,7 @@ Key parsing rules:
 | GET | `/api/news` | Latest news snapshot |
 | GET | `/api/status` | App status (crawl times, counts) |
 | POST | `/api/refresh` | Trigger immediate crawl |
+| POST | `/api/clear-log` | Clear app.log and start fresh |
 | GET | `/api/email-settings` | Email config status (no secrets) |
 | POST | `/api/email-settings` | Update SMTP credentials |
 
@@ -148,26 +133,6 @@ All settings in `.env` (loaded by `config.py`):
 - BeautifulSoup4 - news HTML parsing
 - pystray + Pillow - Windows system tray
 - Vanilla JS - dashboard frontend (no frameworks)
-
-## File Descriptions
-
-| File | Purpose |
-|------|---------|
-| `app.py` | Main entry point - starts Flask, scheduler, tray icon |
-| `config.py` | Configuration from .env + constants |
-| `database.py` | SQLite connection management + schema init |
-| `models.py` | Data classes (Flight, Destination, AlertConfig, etc.) |
-| `scheduler.py` | APScheduler setup + crawl orchestration |
-| `tray_app.py` | Windows system tray icon (pystray) |
-| `crawler/seat_availability.py` | Playwright-based seat availability crawler |
-| `crawler/news_monitor.py` | News page content monitor + change detection |
-| `services/email_notifier.py` | Email alerts via Gmail SMTP |
-| `web/routes.py` | Flask API endpoints + email settings |
-| `web/templates/index.html` | Dashboard single-page HTML |
-| `web/static/js/app.js` | Dashboard logic (vanilla JS) |
-| `web/static/css/style.css` | El Al blue theme styling |
-| `extract_api_data.py` | Utility to load API data from saved JSON |
-| `run.bat` | Windows launcher script |
 
 ## Known Limitations
 
