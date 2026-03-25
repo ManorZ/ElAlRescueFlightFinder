@@ -24,7 +24,11 @@ NEWS_POLL_INTERVAL_MINUTES = int(os.getenv("NEWS_POLL_INTERVAL_MINUTES", "30"))
 
 # Flask
 FLASK_PORT = int(os.getenv("FLASK_PORT", "5000"))
-FLASK_HOST = "127.0.0.1"
+FLASK_HOST = os.getenv("FLASK_HOST", "127.0.0.1")
+
+# Basic auth (optional, for server deployment)
+BASIC_AUTH_USER = os.getenv("BASIC_AUTH_USER", "")
+BASIC_AUTH_PASS = os.getenv("BASIC_AUTH_PASS", "")
 
 # Request settings
 REQUEST_TIMEOUT = 30

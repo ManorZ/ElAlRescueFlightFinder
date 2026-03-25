@@ -1,0 +1,14 @@
+services:
+  flightfinder:
+    build: .
+    container_name: elal-flight-finder
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - HEADLESS=1
