@@ -2,7 +2,7 @@
 
 ## Overview
 
-Windows desktop app that monitors El Al's website for available rescue/recovery flights TO Israel during Operation "Roaring Lion" (Iran conflict, March 2026). Aggregates seat availability in a local web dashboard and sends email alerts when flights with available seats appear from user-specified origins.
+App that monitors El Al's website for available rescue/recovery flights TO Israel during Operation "Roaring Lion" (Iran conflict, March 2026). Aggregates seat availability in a web dashboard and sends email alerts when flights with available seats appear from user-specified origins. Runs locally on Windows (with system tray) or on a Linux VPS via Docker.
 
 ## Quick Start
 
@@ -19,6 +19,15 @@ python app.py
 ```
 
 Dashboard opens at `http://127.0.0.1:5000`. System tray icon provides quick access.
+
+### Docker Deployment (Linux VPS)
+
+```bash
+# Create .env with SMTP credentials, then:
+docker compose up -d --build
+```
+
+Dashboard at `http://<server-ip>:5000`. Set `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` in `.env` for auth.
 
 ### Star Alliance Setup (Tokyo → Israel)
 
@@ -50,6 +59,10 @@ app.py (entry point)
   ├── Setup scripts
   │     ├── setup_alerts.py      - Star Alliance bulk alert creator
   │     └── setup_and_run.bat    - Setup + launch combined
+  ├── Docker deployment
+  │     ├── Dockerfile           - Python 3.11 + Playwright Chromium
+  │     ├── docker-compose.yml   - One-command deployment
+  │     └── requirements-server.txt - Server deps (no pystray/Pillow)
   └── SQLite database
         └── data/flights.db
 ```
@@ -121,7 +134,10 @@ All settings in `.env` (loaded by `config.py`):
 - `SMTP_USERNAME`, `SMTP_PASSWORD` - Gmail credentials (App Password required)
 - `POLL_INTERVAL_MINUTES` - Crawl frequency (default: 60)
 - `NEWS_POLL_INTERVAL_MINUTES` - News check frequency (default: 30)
+- `FLASK_HOST` - Bind address (default: 127.0.0.1, use 0.0.0.0 for server)
 - `FLASK_PORT` - Dashboard port (default: 5000)
+- `HEADLESS` - Skip system tray and browser open (default: auto-detected, set `1` for server)
+- `BASIC_AUTH_USER`, `BASIC_AUTH_PASS` - Optional HTTP Basic Auth for server deployment
 
 ## Tech Stack
 
@@ -131,7 +147,8 @@ All settings in `.env` (loaded by `config.py`):
 - Playwright 1.52 - headless browser for API access
 - SQLite - local persistence
 - BeautifulSoup4 - news HTML parsing
-- pystray + Pillow - Windows system tray
+- pystray + Pillow - Windows system tray (not used in Docker)
+- Docker - server deployment
 - Vanilla JS - dashboard frontend (no frameworks)
 
 ## Known Limitations
