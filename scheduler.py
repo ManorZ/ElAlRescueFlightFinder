@@ -102,6 +102,8 @@ def start_scheduler():
         minutes=config.POLL_INTERVAL_MINUTES,
         id="full_crawl",
         replace_existing=True,
+        misfire_grace_time=None,  # Always run after sleep/wake, never skip
+        coalesce=True,            # Consolidate multiple missed runs into one
     )
     scheduler.add_job(
         check_refresh,
